@@ -61,6 +61,7 @@ def setup(app):
     add_skulpt_js(app)
     app.add_autoversioned_javascript("activecode.js")
     app.add_autoversioned_javascript("clike.js")
+    app.add_autoversioned_javascript("sharedb.js")
     app.add_autoversioned_javascript("timed_activecode.js")
     app.add_autoversioned_javascript("sql-wasm.js")  # todo: only load if we need it
     app.add_javascript("https://cdn.jsdelivr.net/npm/handsontable@7.2.2/dist/handsontable.full.js")
