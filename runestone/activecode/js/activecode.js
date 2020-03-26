@@ -9,12 +9,22 @@ class ShareDBCodeMirrorBinding {
         this.suppressChanges = false;
         this.initialFetchCallbacks = [];
         this.gotInitialFetch = false;
+        this.supressChangesFromHelpSession = false;
         this.doc = doc;
         this.editorDoc = codeMirror.getDoc();
-        this.doc.subscribe(this.onSDBDocEvent.bind(this));
-        this.doc.on("op", this.updateDoc.bind(this));
         this.codeMirror = codeMirror;
-        this.codeMirror.on("change", this.onCodeMirrorChange.bind(this));
+
+        this.$onSDBDocEvent = this.onSDBDocEvent.bind(this);
+        this.$updateDoc = this.updateDoc.bind(this);
+        this.$onCodeMirrorChange = this.onCodeMirrorChange.bind(this);
+
+        this.doc.on("op", this.$updateDoc);
+        this.doc.subscribe(this.$onSDBDocEvent);
+        this.codeMirror.on("change", this.$onCodeMirrorChange);
+
+        // this.doc.on("op", this.updateDoc.bind(this));
+        // this.doc.subscribe(this.onSDBDocEvent.bind(this));
+        // this.codeMirror.on("change", this.onCodeMirrorChange.bind(this));
     }
 
     updateDoc(ops, source) {
@@ -26,8 +36,14 @@ class ShareDBCodeMirrorBinding {
     }
 
     destroy() {
-        this.codeMirror.off("change", this.onCodeMirrorChange);
-        this.doc.unsubscribe(this.onSDBDocEvent.bind(this));
+        this.doc.unsubscribe(this.$onSDBDocEvent);
+        this.codeMirror.off("change", this.$onCodeMirrorChange);
+        this.doc.removeListener("op", this.$updateDoc);
+
+        // this.doc.removeListener("op", this.updateDoc.bind(this));
+        // this.codeMirror.off("change", this.onCodeMirrorChange.bind(this));
+        // this.doc.unsubscribe(this.onSDBDocEvent.bind(this));
+        // this.supressChangesFromHelpSession = true;
     }
 
     onSDBDocEvent(type, ops, source) {
@@ -48,6 +64,7 @@ class ShareDBCodeMirrorBinding {
     }
 
     onCodeMirrorChange(codeMirror, change) {
+        // if (!this.suppressChanges && !this.supressChangesFromHelpSession) {
         if (!this.suppressChanges) {
             const ops = this.createOpFromChange(change);
             // var ops2 = ops;
@@ -546,19 +563,38 @@ ActiveCode.prototype.createControls = function() {
     // }
     // back to my own code
     var thisCodeProblem;
-    if ($(this.origElem).data("codelens") && !this.graderactive) {
-        const buttMINI = document.createElement("button");
-        $(buttMINI).addClass("ac_opt btn btn-default");
-        $(buttMINI).text("My Code");
-        $(buttMINI).css("margin-left", "10px");
-        ctrlDiv.appendChild(buttMINI);
-        this.doc_codecontent = connection_codecontent.get(
-            this.divid + newUser,
-            "mycode"
-        );
-        const editor = this.editor;
-        const currentCodeDoc = this.doc_codecontent;
+    const buttMINI = document.createElement("button");
+    $(buttMINI).addClass("ac_opt btn btn-default");
+    $(buttMINI).text("My Code");
+    $(buttMINI).css("margin-left", "10px");
+    ctrlDiv.appendChild(buttMINI);
+    this.doc_mycode = connection_codecontent.get(this.divid + newUser, "mycode");
+    const editor = this.editor;
+    const currentCodeDoc = this.doc_mycode;
 
+    currentCodeDoc.fetch(function(err) {
+        if (err) throw err;
+        if (currentCodeDoc.type === null) {
+            currentCodeDoc.create(
+                {
+                    code: editor.getValue(),
+                },
+                acallback
+            );
+            return;
+        }
+        acallback();
+    });
+
+    function acallback() {
+        thisCodeProblem = new ShareDBCodeMirrorBinding(editor, currentCodeDoc);
+    }
+
+    function mycode() {
+        this.doc_mycode = connection_codecontent.get(this.divid + newUser, "mycode");
+        const editor = this.editor;
+        const currentCodeDoc = this.doc_mycode;
+        helpsession.destroy();
         currentCodeDoc.fetch(function(err) {
             if (err) throw err;
             if (currentCodeDoc.type === null) {
@@ -572,35 +608,21 @@ ActiveCode.prototype.createControls = function() {
             }
             acallback();
         });
-
-        function acallback() {
-            thisCodeProblem = new ShareDBCodeMirrorBinding(editor, currentCodeDoc);
-        }
-
-        function mycode() {
-            thisCodeProblem.doc.subscribe(
-                thisCodeProblem.onSDBDocEvent.bind(thisCodeProblem)
-            );
-            // this.doc_codecontent = connection_codecontent.get(
-            //     this.divid + newUser,
-            //     "mycode"
-            // );
-            // const editor = this.editor;
-            // const currentCodeDoc = this.doc_codecontent;
-            // currentCodeDoc.fetch(function(err) {
-            //     if (err) throw err;
-            //     const thisCodeProblem = new ShareDBCodeMirrorBinding(
-            //         editor,
-            //         currentCodeDoc
-            //     );
-            // });
-        }
-
-        $(buttMINI).click(mycode.bind(this));
+        // thisCodeProblem.doc.on("op", thisCodeProblem.$updateDoc);
+        // thisCodeProblem.doc.subscribe(thisCodeProblem.$onSDBDocEvent);
+        // editor.on("change", thisCodeProblem.$onCodemirrorChange);
+        // thisCodeProblem.doc.subscribe(
+        //     thisCodeProblem.onSDBDocEvent.bind(thisCodeProblem)
+        // );
+        // editor.on("change", thisCodeProblem.onCodeMirrorChange.bind(this));
+        // thisCodeProblem.suppressChanges = false;
+        // helpsession.suppressChanges = true;
     }
+    $(buttMINI).click(mycode.bind(this));
 
     // help session
-    if ($(this.origElem).data("codelens") && !this.graderactive) {
+    var helpsession;
+    if (this.divid != "fopp_scratch_ac") {
         const buttMINI = document.createElement("button");
         $(buttMINI).addClass("ac_opt btn btn-default");
         $(buttMINI).text("Help");
@@ -611,8 +633,11 @@ ActiveCode.prototype.createControls = function() {
             this.doc_codecontent = connection_codecontent.get(this.divid, "my_test");
             const editor = this.editor;
             const currentCodeDoc = this.doc_codecontent;
+            // thisCodeProblem.suppressChanges = true;
+
+            // thisCodeProblem.doc.subscribe(thisCodeProblem.onSDBDocEvent.bind(this));
             thisCodeProblem.destroy();
-            //  thisCodeProblem.doc.subscribe(thisCodeProblem.onSDBDocEvent.bind(this));
+
             currentCodeDoc.fetch(function(err) {
                 if (err) throw err;
                 if (currentCodeDoc.type === null) {
@@ -630,9 +655,9 @@ ActiveCode.prototype.createControls = function() {
             });
 
             function acallback() {
-                const helpsession = new ShareDBCodeMirrorBinding(editor, currentCodeDoc);
+                helpsession = new ShareDBCodeMirrorBinding(editor, currentCodeDoc);
                 // enable the button
-                currentDocForUser.on("op", showAllUsers);
+                // currentDocForUser.on("op", showAllUsers);
             }
         }
         $(buttMINI).click(increament.bind(this));
@@ -699,15 +724,6 @@ ActiveCode.prototype.createControls = function() {
         // update the number on the page
         currentDocForUser.on("op", showAllUsers);
     });
-
-    window.onbeforeunload = function() {
-        // remove this user
-        console.log("ok", currentDocForUser.data);
-        Object.keys(edList).forEach(value => {
-            var userIndex = currentDocForUser.data[value].indexOf(newUser);
-            currentDocForUser.submitOp([{ p: [value, userIndex], ld: newUser }]);
-        });
-    };
 
     if (this.enablePartner) {
         var checkPartner = document.createElement("input");
