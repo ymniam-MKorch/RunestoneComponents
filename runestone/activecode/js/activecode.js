@@ -1,7 +1,12 @@
 /**
  *
  * Created by bmiller on 3/19/15.
+ * only it suppoerts that everyone can click on help session
  *
+ * TODOS;
+ *  1. need to hide the other buttons if getting into one help session
+ *  2. when creating a help session, the requester should connect to that help session
+ *   as well
  */
 
 class ShareDBCodeMirrorBinding {
@@ -271,11 +276,38 @@ ActiveCode.prototype.createEditor = function(index) {
     linkdiv.id = this.divid.replace(/_/g, "-").toLowerCase(); // :ref: changes _ to - so add this as a target
     $(this.containerDiv).addClass("ac_section alert alert-warning");
     var codeDiv = document.createElement("div");
-    $(codeDiv).addClass("ac_code_div col-md-12");
+    $(codeDiv).addClass("ac_code_div col-md-10");
     this.codeDiv = codeDiv;
     this.containerDiv.id = this.divid;
     this.containerDiv.lang = this.language;
     this.outerDiv = this.containerDiv;
+
+    // chat funcction starts
+    var chatDiv = document.createElement("div");
+    $(chatDiv).addClass("ac_code_div col-md-2");
+
+    var chatMsg = document.createElement("div");
+    chatMsg.setAttribute(
+        "style",
+        "width: 300px; height: 200px; background: white; border:1px solid"
+    );
+    var chatInput = document.createElement("input");
+    chatInput.id = this.divid + newUser;
+    chatInput.setAttribute("style", "width: 300px; background: white; border:1px solid");
+    chatInput.addEventListener("keyup", function(event) {
+        // Number 13 is the "Enter" key on the keyboard
+        if (event.keyCode === 13) {
+            // Cancel the default action, if needed
+            event.preventDefault();
+            // Trigger the button element with a click
+            // add to the server
+        }
+    });
+
+    chatDiv.appendChild(chatMsg);
+    chatDiv.appendChild(chatInput);
+
+    // chat function ends
 
     $(this.origElem).replaceWith(this.containerDiv);
     if (linkdiv.id !== this.divid) {
@@ -283,6 +315,8 @@ ActiveCode.prototype.createEditor = function(index) {
         this.containerDiv.appendChild(linkdiv);
     }
     this.containerDiv.appendChild(codeDiv);
+    this.containerDiv.appendChild(chatDiv);
+
     var edmode = this.containerDiv.lang;
     if (edmode === "sql") {
         edmode = "text/x-sql";
@@ -652,6 +686,8 @@ ActiveCode.prototype.createControls = function() {
             "helpsession_user" + "user" + this.id
         );
         const helpsessionDoc = this.doc_codecontent;
+        const userName = this.user;
+        const userCode = this.code;
 
         thisCodeProblem.destroy();
 
@@ -660,8 +696,8 @@ ActiveCode.prototype.createControls = function() {
             if (helpsessionDoc.type === null) {
                 helpsessionDoc.create(
                     {
-                        user: newUser,
-                        code: editor.getValue(),
+                        user: userName,
+                        code: userCode,
                     },
                     acallback
                 );
@@ -684,55 +720,20 @@ ActiveCode.prototype.createControls = function() {
     $(helpButton).css("margin-left", "10px");
     ctrlDiv.appendChild(helpButton);
 
-    function increament() {
-        this.doc_codecontent = connection_codecontent.get(
-            problem_id,
-            "helpsession_user"
-        );
-        const editor = this.editor;
-        const helpsessionDoc = this.doc_codecontent;
-
-        thisCodeProblem.destroy();
-
-        helpsessionDoc.fetch(function(err) {
-            if (err) throw err;
-            if (helpsessionDoc.type === null) {
-                helpsessionDoc.create([
-                    {
-                        user: newUser,
-                        code: editor.getValue(),
-                    },
-                    acallback,
-                ]);
-                return;
-            } else {
-                var newData = {
-                    user: newUser,
-                    code: editor.getValue(),
-                };
-                var dataLength = helpsessionDoc.data.length;
-                helpsessionDoc.submitOp([{ p: [dataLength], li: newData }]);
-            }
-            acallback();
-        });
-
-        function acallback() {
-            helpsession = new ShareDBCodeMirrorBinding(editor, helpsessionDoc);
-        }
-    }
-
     function addNewHelpSession() {
         currentDocForHelpSession.fetch(function(err) {
             if (err) throw err;
             if (currentDocForHelpSession.type === null) {
-                currentDocForHelpSession.create([
-                    {
-                        user: newUser,
-                        code: editor.getValue(),
-                        id: String(new Date().getTime()),
-                    },
-                    showAllHelpSession,
-                ]);
+                currentDocForHelpSession.create(
+                    [
+                        {
+                            user: newUser,
+                            code: editor.getValue(),
+                            id: String(new Date().getTime()),
+                        },
+                    ],
+                    showAllHelpSession
+                );
                 return;
                 // [{participant: newUser, code: ""]}]
             } else {
@@ -749,56 +750,6 @@ ActiveCode.prototype.createControls = function() {
     }
 
     $(helpButton).click(addNewHelpSession.bind(this));
-
-    // function showAllUsers(a, b, c) {
-    //     currentDocForUser.data[problem_id].forEach(userName => {
-    //         if ($("div#currentUser" + problem_id).children("button").length > 0) {
-    //             var flag = 0;
-    //             $("div#currentUser" + problem_id)
-    //                 .children("button")
-    //                 .each((o, b) => {
-    //                     if (userName == $(b).text()) {
-    //                         flag = 1;
-    //                     }
-    //                 });
-
-    //             if (flag == 0) {
-    //                 var connectedUser = document.createElement("button");
-    //                 $(connectedUser).text(userName);
-    //                 connectedUser.disabled = true;
-    //                 $("div#currentUser" + problem_id).append($(connectedUser));
-    //             }
-    //         } else {
-    //             var connectedUser = document.createElement("button");
-    //             $(connectedUser).text(userName);
-    //             connectedUser.disabled = true;
-    //             $("div#currentUser" + problem_id).append($(connectedUser));
-    //         }
-    //     });
-    // }
-
-    // currentDocForUser.fetch(function(err) {
-    //     if (err) throw err;
-
-    //     if (currentDocForUser.type === null) {
-    //         currentDocForUser.create({
-    //             [problem_id]: [newUser],
-    //         });
-    //     } else if (!currentDocForUser.data.hasOwnProperty(problem_id)) {
-    //         currentDocForUser.data[problem_id] = [newUser];
-    //         currentDocForUser.submitOp([{ p: [problem_id], oi: [newUser] }]);
-    //     } else if (currentDocForUser.data[problem_id].indexOf(newUser) == -1) {
-    //         var userNum = currentDocForUser.data[problem_id].length;
-    //         currentDocForUser.submitOp([{ p: [problem_id, userNum], li: newUser }]);
-    //         // currentDocForUser.data.userArray.push(newUser);
-    //     }
-    //     // console.log(currentDocForUser.data);
-    //     // Get initial value of document and subscribe to changes
-    //     currentDocForUser.subscribe(showAllUsers);
-    //     // When document changes (by this client or any other, or the server),
-    //     // update the number on the page
-    //     currentDocForUser.on("op", showAllUsers);
-    // });
 
     if (this.enablePartner) {
         var checkPartner = document.createElement("input");
