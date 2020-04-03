@@ -151,7 +151,7 @@ var edList = {};
 var allDburls = {};
 
 ActiveCode.prototype = new RunestoneBase();
-var newUser = "User " + Math.floor(Math.random() * 100);
+var newUser = "User" + Math.floor(Math.random() * 100);
 
 var socket, connection, doc;
 var socket_mini, connection_mini;
@@ -272,89 +272,17 @@ ActiveCode.prototype.init = function(opts) {
 
 ActiveCode.prototype.createEditor = function(index) {
     this.containerDiv = document.createElement("div");
+
     var linkdiv = document.createElement("div");
     linkdiv.id = this.divid.replace(/_/g, "-").toLowerCase(); // :ref: changes _ to - so add this as a target
     $(this.containerDiv).addClass("ac_section alert alert-warning");
-    var codeDiv = document.createElement("div");
+    const codeDiv = document.createElement("div");
     $(codeDiv).addClass("ac_code_div col-md-10");
+
     this.codeDiv = codeDiv;
     this.containerDiv.id = this.divid;
     this.containerDiv.lang = this.language;
     this.outerDiv = this.containerDiv;
-
-    // chat funcction starts
-    var chatDiv = document.createElement("div");
-    $(chatDiv).addClass("ac_code_div col-md-2");
-
-    var chatMsg = document.createElement("div");
-    chatMsg.setAttribute(
-        "style",
-        "width: 300px; height: 200px; background: white; border:1px solid"
-    );
-    var chatInput = document.createElement("input");
-    chatInput.id = this.divid + newUser;
-    chatInput.setAttribute("style", "width: 300px; background: white; border:1px solid");
-
-    chatDiv.appendChild(chatMsg);
-    chatDiv.appendChild(chatInput);
-
-    this.doc_mychat = connection_codecontent.get(this.divid, "mychat");
-    const currentChatDoc = this.doc_mychat;
-
-    currentChatDoc.fetch(function(err) {
-        if (err) throw err;
-        currentChatDoc.subscribe(chatcallback);
-        currentChatDoc.on("op", chatcallback);
-    });
-
-    function chatcallback() {
-        if (currentChatDoc.type != null) {
-            currentChatDoc.data.forEach(session => {
-                var userName = session.user;
-                var connectedUser = document.createElement("button");
-                $(connectedUser).text(userName);
-                $("div#helpsession" + problem_id).append($(connectedUser));
-                $(connectedUser).click(showmycode.bind(session));
-            });
-        }
-    }
-
-    chatInput.addEventListener("keyup", function(event) {
-        // Number 13 is the "Enter" key on the keyboard
-        if (event.keyCode === 13) {
-            // Cancel the default action, if needed
-            event.preventDefault();
-            // Trigger the button element with a click
-            // add to the server
-            currentDocForHelpSession.fetch(function(err) {
-                if (err) throw err;
-                if (currentDocForHelpSession.type === null) {
-                    currentChatDoc.create(
-                        [
-                            {
-                                user: newUser,
-                                msg: this.value,
-                                time: new Date().getTime(),
-                            },
-                        ],
-                        chatcallback
-                    );
-                    return;
-                    // [{participant: newUser, code: ""]}]
-                } else {
-                    const newData = {
-                        user: newUser,
-                        msg: this.value,
-                        time: new Date().getTime(),
-                    };
-                    var dataLength = currentChatDoc.data.length;
-                    currentChatDoc.submitOp([{ p: [dataLength], li: newData }]);
-                }
-            });
-        }
-    });
-
-    // chat function ends
 
     $(this.origElem).replaceWith(this.containerDiv);
     if (linkdiv.id !== this.divid) {
@@ -362,8 +290,7 @@ ActiveCode.prototype.createEditor = function(index) {
         this.containerDiv.appendChild(linkdiv);
     }
     this.containerDiv.appendChild(codeDiv);
-    this.containerDiv.appendChild(chatDiv);
-
+    const containerDiv = this.containerDiv;
     var edmode = this.containerDiv.lang;
     if (edmode === "sql") {
         edmode = "text/x-sql";
@@ -598,49 +525,6 @@ ActiveCode.prototype.createControls = function() {
             }.bind(this)
         );
     }
-
-    // MINI Piazza
-    // if ($(this.origElem).data("codelens") && !this.graderactive) {
-    //     this.doc_mini = connection_mini.get("examples", this.divid);
-    //     var currentDoc = this.doc_mini;
-    //     var buttMINI = document.createElement("button");
-
-    //     $(buttMINI).addClass("ac_opt btn btn-default");
-    //     $(buttMINI).text("Mini Piazza");
-    //     $(buttMINI).css("margin-left", "10px");
-    //     ctrlDiv.appendChild(buttMINI);
-
-    //     var increament = function() {
-    //         currentDoc.submitOp([{ p: ["numClicks"], na: 1 }]);
-    //         $(buttMINI).text("Mini Piazza (" + currentDoc.data.numClicks + ")");
-    //         console.log(
-    //             "Problem ",
-    //             currentDoc.id,
-    //             " increased to ",
-    //             currentDoc.data.numClicks
-    //         );
-    //     };
-    //     $(buttMINI).click(increament);
-    //     function showNumbers() {
-    //         console.log(currentDoc.data.numClicks);
-    //         $(buttMINI).text("Mini Piazza (" + currentDoc.data.numClicks + ")");
-    //     }
-
-    //     this.doc_mini.fetch(function(err) {
-    //         if (err) throw err;
-    //         if (currentDoc.type === null) {
-    //             console.log("ok");
-    //             currentDoc.create({
-    //                 numClicks: 0,
-    //             });
-    //         }
-    //         // Get initial value of document and subscribe to changes
-    //         currentDoc.subscribe(showNumbers);
-    //         // When document changes (by this client or any other, or the server),
-    //         // update the number on the page
-    //         currentDoc.on("op", showNumbers);
-    //     });
-    // }
     // back to my own code
     var thisCodeProblem;
     const buttMINI = document.createElement("button");
@@ -651,6 +535,7 @@ ActiveCode.prototype.createControls = function() {
     this.doc_mycode = connection_codecontent.get(this.divid + newUser, "mycode");
     const editor = this.editor;
     const currentCodeDoc = this.doc_mycode;
+    const problem_id = this.divid;
 
     currentCodeDoc.fetch(function(err) {
         if (err) throw err;
@@ -674,6 +559,7 @@ ActiveCode.prototype.createControls = function() {
         this.doc_mycode = connection_codecontent.get(this.divid + newUser, "mycode");
         const editor = this.editor;
         const currentCodeDoc = this.doc_mycode;
+        $("div#chat_window_div" + problem_id).remove();
         helpsession.destroy();
         currentCodeDoc.fetch(function(err) {
             if (err) throw err;
@@ -688,11 +574,11 @@ ActiveCode.prototype.createControls = function() {
             }
             acallback();
         });
+        $("div#chat_window_div" + this.divid).hide();
     }
     $(buttMINI).click(mycode.bind(this));
 
     // connected users
-    var problem_id = this.divid;
     var helpsession = connection_mini.get(problem_id, "helpsession_user");
     var currentDocForHelpSession = helpsession;
 
@@ -719,15 +605,16 @@ ActiveCode.prototype.createControls = function() {
         if (currentDocForHelpSession.type != null) {
             currentDocForHelpSession.data.forEach(session => {
                 var userName = session.user;
+                // session.index =
                 var connectedUser = document.createElement("button");
                 $(connectedUser).text(userName);
                 $("div#helpsession" + problem_id).append($(connectedUser));
-                $(connectedUser).click(showmycode.bind(session));
+                $(connectedUser).click(showHelpSessionCode.bind(session));
             });
         }
     }
 
-    function showmycode() {
+    function showHelpSessionCode() {
         this.doc_codecontent = connection_codecontent.get(
             problem_id,
             "helpsession_user" + "user" + this.id
@@ -737,7 +624,7 @@ ActiveCode.prototype.createControls = function() {
         const userCode = this.code;
 
         thisCodeProblem.destroy();
-
+        createChatWindow(this);
         helpsessionDoc.fetch(function(err) {
             if (err) throw err;
             if (helpsessionDoc.type === null) {
@@ -759,6 +646,103 @@ ActiveCode.prototype.createControls = function() {
         }
     }
 
+    //chat session
+
+    function createChatWindow(currentProblem) {
+        // chat funcction starts
+        var chatDiv = document.createElement("div");
+        chatDiv.id = "chat_window_div" + problem_id;
+        $(chatDiv).addClass("ac_code_div col-md-2");
+        // chatDiv.style.display = "none";
+
+        var chatMsg = document.createElement("div");
+        chatMsg.id = "chat_window" + problem_id;
+        chatMsg.setAttribute(
+            "style",
+            "width: 300px; height: 200px; background: white; border:1px solid; overflow: auto"
+        );
+        var chatInput = document.createElement("input");
+        chatInput.id = problem_id + newUser;
+        chatInput.setAttribute(
+            "style",
+            "width: 300containerDivpx; background: white; border:1px solid"
+        );
+
+        chatDiv.appendChild(chatMsg);
+        chatDiv.appendChild(chatInput);
+        $("div#" + problem_id)[0].appendChild(chatDiv);
+
+        $("div#chat_window_div" + problem_id).show();
+        var helpsession = connection_codecontent.get(problem_id, "helpsession_user");
+        const currentChatDoc = helpsession;
+        const currentSession = currentProblem;
+
+        currentChatDoc.fetch(function(err) {
+            if (err) throw err;
+            currentChatDoc.subscribe(chatcallback);
+            currentChatDoc.on("op", chatcallback);
+        });
+
+        function chatcallback() {
+            var chatWindow = $("div#chat_window" + problem_id);
+
+            chatWindow.children("p").remove();
+            if (currentChatDoc.type != null) {
+                currentChatDoc.data[currentSession.index]["chat"].forEach(session => {
+                    var connectedUser = document.createElement("p");
+                    $(connectedUser).text(session.user + ": " + session.msg);
+                    chatWindow.append($(connectedUser));
+                });
+            }
+            chatWindow.scrollTop(chatWindow.height());
+        }
+        // chatInput = $("input#" + problem_id + newUser)[0];
+        chatInput.addEventListener("keyup", function(event) {
+            // Number 13 is the "Enter" key on the keyboard
+            if (event.keyCode === 13) {
+                // Cancel the default action, if needed
+                event.preventDefault();
+                // Trigger the button element with a click
+                // add to the server
+                const chatValue = this.value;
+                this.value = "";
+                currentChatDoc.fetch(function(err) {
+                    if (err) throw err;
+                    if (currentChatDoc.type === null) {
+                        currentChatDoc.create(
+                            [
+                                {
+                                    user: newUser,
+                                    msg: chatValue,
+                                    time: new Date().getTime(),
+                                },
+                            ],
+                            chatcallback
+                        );
+                        return;
+                        // [{participant: newUser, code: ""]}]
+                    } else {
+                        const newData = {
+                            user: newUser,
+                            msg: chatValue,
+                            time: new Date().getTime(),
+                        };
+                        var dataLength =
+                            currentChatDoc.data[currentSession.index]["chat"].length;
+
+                        // need to update this index's chat
+                        currentChatDoc.submitOp([
+                            {
+                                p: [currentSession.index, "chat", dataLength],
+                                li: newData,
+                            },
+                        ]);
+                    }
+                });
+            }
+        });
+    }
+
     // help session
     var helpsession;
     const helpButton = document.createElement("button");
@@ -774,8 +758,10 @@ ActiveCode.prototype.createControls = function() {
                 currentDocForHelpSession.create(
                     [
                         {
+                            index: 0,
                             user: newUser,
                             code: editor.getValue(),
+                            chat: [],
                             id: String(new Date().getTime()),
                         },
                     ],
@@ -784,15 +770,17 @@ ActiveCode.prototype.createControls = function() {
                 return;
                 // [{participant: newUser, code: ""]}]
             } else {
+                var dataLength = currentDocForHelpSession.data.length;
                 var newData = {
+                    index: dataLength,
                     user: newUser,
                     code: editor.getValue(),
+                    chat: [],
                     id: String(new Date().getTime()),
                 };
-                var dataLength = currentDocForHelpSession.data.length;
+
                 currentDocForHelpSession.submitOp([{ p: [dataLength], li: newData }]);
             }
-            console.log(currentDocForHelpSession.data);
         });
     }
 
