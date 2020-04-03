@@ -294,6 +294,31 @@ ActiveCode.prototype.createEditor = function(index) {
     var chatInput = document.createElement("input");
     chatInput.id = this.divid + newUser;
     chatInput.setAttribute("style", "width: 300px; background: white; border:1px solid");
+
+    chatDiv.appendChild(chatMsg);
+    chatDiv.appendChild(chatInput);
+
+    this.doc_mychat = connection_codecontent.get(this.divid, "mychat");
+    const currentChatDoc = this.doc_mychat;
+
+    currentChatDoc.fetch(function(err) {
+        if (err) throw err;
+        currentChatDoc.subscribe(chatcallback);
+        currentChatDoc.on("op", chatcallback);
+    });
+
+    function chatcallback() {
+        if (currentChatDoc.type != null) {
+            currentChatDoc.data.forEach(session => {
+                var userName = session.user;
+                var connectedUser = document.createElement("button");
+                $(connectedUser).text(userName);
+                $("div#helpsession" + problem_id).append($(connectedUser));
+                $(connectedUser).click(showmycode.bind(session));
+            });
+        }
+    }
+
     chatInput.addEventListener("keyup", function(event) {
         // Number 13 is the "Enter" key on the keyboard
         if (event.keyCode === 13) {
@@ -301,11 +326,33 @@ ActiveCode.prototype.createEditor = function(index) {
             event.preventDefault();
             // Trigger the button element with a click
             // add to the server
+            currentDocForHelpSession.fetch(function(err) {
+                if (err) throw err;
+                if (currentDocForHelpSession.type === null) {
+                    currentChatDoc.create(
+                        [
+                            {
+                                user: newUser,
+                                msg: this.value,
+                                time: new Date().getTime(),
+                            },
+                        ],
+                        chatcallback
+                    );
+                    return;
+                    // [{participant: newUser, code: ""]}]
+                } else {
+                    const newData = {
+                        user: newUser,
+                        msg: this.value,
+                        time: new Date().getTime(),
+                    };
+                    var dataLength = currentChatDoc.data.length;
+                    currentChatDoc.submitOp([{ p: [dataLength], li: newData }]);
+                }
+            });
         }
     });
-
-    chatDiv.appendChild(chatMsg);
-    chatDiv.appendChild(chatInput);
 
     // chat function ends
 
