@@ -8,7 +8,7 @@
  *  2. when creating a help session, the requester should connect to that help session
  *   as well
  */
-
+//////////
 class ShareDBCodeMirrorBinding {
     constructor(codeMirror, doc) {
         this.suppressChanges = false;
@@ -589,7 +589,7 @@ ActiveCode.prototype.createControls = function () {
     connectedUserDiv.id = "helpsession" + problem_id;
 
     var connectedUserHeaderText = document.createElement("p");
-    $(connectedUserHeaderText).text("Users who need help: ");
+    //$(connectedUserHeaderText).text(num + " Users who need help: ");
 
     connectedUserDiv.appendChild(connectedUserHeaderText);
 
@@ -597,9 +597,18 @@ ActiveCode.prototype.createControls = function () {
 
     currentDocForHelpSession.fetch(function (err) {
         if (err) throw err;
+        currentDocForHelpSession.subscribe(showUserNumber);
+        currentDocForHelpSession.on("op", showUserNumber);
         currentDocForHelpSession.subscribe(showAllHelpSession);
         currentDocForHelpSession.on("op", showAllHelpSession);
     });
+
+    function showUserNumber() {
+        if (currentDocForHelpSession.type != null) {
+            var num = currentDocForHelpSession.data.length;
+            $(connectedUserHeaderText).text(num + " Users who need help: ");
+        }
+    }
 
     function showAllHelpSession() {
         $("div#helpsession" + problem_id)
