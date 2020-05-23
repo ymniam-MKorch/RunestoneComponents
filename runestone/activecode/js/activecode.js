@@ -256,6 +256,7 @@ ActiveCode.prototype.init = function (opts) {
     this.createEditor();
     this.createOutput();
     this.createControls();
+    this.createDiscussions();
 
     if ($(orig).data("caption")) {
         this.caption = $(orig).data("caption");
@@ -272,14 +273,20 @@ ActiveCode.prototype.init = function (opts) {
 
 ActiveCode.prototype.createEditor = function (index) {
     this.containerDiv = document.createElement("div");
-
     var linkdiv = document.createElement("div");
     linkdiv.id = this.divid.replace(/_/g, "-").toLowerCase(); // :ref: changes _ to - so add this as a target
-    $(this.containerDiv).addClass("ac_section alert alert-warning");
+    $(this.containerDiv).addClass("ac_section alert alert-warning row");
     const codeDiv = document.createElement("div");
-    $(codeDiv).addClass("ac_code_div col-md-12");
+    $(codeDiv).addClass("ac_code_div col-md-6");
+    const discussionDiv = document.createElement("div");
+    discussionDiv.id = "discussionDiv" + this.divid;
+    $(discussionDiv).addClass("ac_code_div col-md-6");
+    $(discussionDiv).css("position", "relative");
+    $(discussionDiv).css("height", "300px");
+    $(discussionDiv).css("overflow", "hidden");
 
     this.codeDiv = codeDiv;
+    this.discussionDiv = discussionDiv;
     this.containerDiv.id = this.divid;
     this.containerDiv.lang = this.language;
     this.outerDiv = this.containerDiv;
@@ -290,6 +297,7 @@ ActiveCode.prototype.createEditor = function (index) {
         this.containerDiv.appendChild(linkdiv);
     }
     this.containerDiv.appendChild(codeDiv);
+    this.containerDiv.appendChild(discussionDiv);
     const containerDiv = this.containerDiv;
     var edmode = this.containerDiv.lang;
     if (edmode === "sql") {
@@ -363,6 +371,215 @@ ActiveCode.prototype.createEditor = function (index) {
         $(this.codeDiv).css("display", "none");
     }
 };
+
+ActiveCode.prototype.createDiscussions = function () {
+    const problem_id = this.divid;
+    const editor = this.editor;
+    var questions = document.createElement("ul");
+    questions.id ="questions" + problem_id;
+    questions.setAttribute("style", "list-style-type: none; margin: 0; padding: 0; display:block; overflow-y:scroll; max-height: 75%; background: ivory;");
+    this.discussionDiv.appendChild(questions);
+    
+    const inputDiv = document.createElement("div");
+    $(inputDiv).addClass("ac_code_div col-md-4");
+    $(inputDiv).css("overflow", "hidden");
+    $(inputDiv).css("position", "absolute");
+    $(inputDiv).css("bottom", "0");
+    $(inputDiv).css("padding", "3px");
+    $(inputDiv).css("width", "100%");
+    $(inputDiv).css("display", "none");
+    inputDiv.id = "inputDiv" + problem_id;
+
+    const inputQuest = document.createElement("input");
+    inputQuest.id = "inputQuest" + problem_id;
+    inputQuest.setAttribute("style", "padding: 10px; width: 80%; margin-right: .5%; border:0.5px solid #000000;box-sizing: border-box;");
+    inputDiv.appendChild(inputQuest);
+
+    const submitButton = document.createElement("button");
+    $(submitButton).css("width", "18%");
+    $(submitButton).css("height", "5%");
+    $(submitButton).css("border", "0.5px solid #000000");
+    $(submitButton).css("padding", "10px");
+    $(submitButton).css("box-sizing", "border-box");
+    $(submitButton).text("Submit");
+    submitButton.id = "submitButton" + problem_id;
+
+    submitButton.onclick = function () {                 
+        addNewDiscussionSession();
+    };
+    inputDiv.appendChild(submitButton);
+    this.discussionDiv.appendChild(inputDiv);
+
+    var discussion = connection_mini.get(problem_id, "helpsession_discussion");
+    var currentDocForDiscussion = discussion;
+
+    currentDocForDiscussion.fetch(function(err) {
+        if(err) throw err;
+        currentDocForDiscussion.subscribe(showAllDiscussionSession);
+        currentDocForDiscussion.on("op", showAllDiscussionSession);
+    });
+
+    function showAllDiscussionSession() {
+        $("#questions" + problem_id)
+            .children("li")
+            .remove();
+        if (currentDocForDiscussion.type != null) {
+            currentDocForDiscussion.data.forEach((session) => {
+                //var userName = session.user;
+                var question = session.question;
+                var questId = session.id;
+                var code = session.code;
+                var quest = document.createElement("li");
+                var title = document.createElement("button");
+                var t = document.createTextNode(question);
+                title.appendChild(t);
+                title.id = "question" + questId;
+                title.setAttribute("style", "padding: 5px;border:0.5px solid #000000; background:none;");
+                title.onclick = function() { showQuestDetail(problem_id, questId, code); };
+                quest.append(title);
+                $("#questions" + problem_id).append(quest);
+
+                var disDiv = document.getElementById("discussionDiv" + problem_id);
+
+                var detailDiv = document.getElementById("detailDiv" + questId);
+                if (!detailDiv) {
+                    detailDiv = document.createElement("div");
+                    detailDiv.id = "detailDiv" + questId;
+                    detailDiv.style.display = 'none';
+
+                    var back = document.createElement("button");
+                    $(back).text("<-");
+                    back.onclick = function() { showTitles(problem_id, questId); };
+                    detailDiv.appendChild(back);
+
+                    var detail = document.createTextNode(question);
+                    detailDiv.appendChild(detail);
+                    disDiv.appendChild(detailDiv);
+                }
+
+                const answerDiv = document.getElementById("answerDiv" + questId);
+                if (!answerDiv) {
+                    const answerDiv = document.createElement("div");
+                    $(answerDiv).addClass("ac_code_div col-md-4");
+                    $(answerDiv).css("overflow", "hidden");
+                    $(answerDiv).css("position", "absolute");
+                    $(answerDiv).css("bottom", "0");
+                    $(answerDiv).css("padding", "3px");
+                    $(answerDiv).css("width", "100%");
+                    $(answerDiv).css("display", "none");
+                    answerDiv.id = "answerDiv" + questId;
+
+                    const inputAnswer = document.createElement("input");
+                    inputAnswer.id = "inputAnswer" + questId;
+                    inputAnswer.setAttribute("style", "padding: 10px; width: 80%; margin-right: .5%; border:0.5px solid #000000;box-sizing: border-box;");
+                    answerDiv.appendChild(inputAnswer);
+                    const answerButton = document.createElement("button");
+                    $(answerButton).css("width", "18%");
+                    $(answerButton).css("height", "5%");
+                    $(answerButton).css("border", "0.5px solid #000000");
+                    $(answerButton).css("padding", "10px");
+                    $(answerButton).css("box-sizing", "border-box");
+                    $(answerButton).text("Submit");
+                    answerButton.id = "answerButton" + questId;
+                    answerButton.onclick = function () {                 
+                        addNewDiscussionAnswer(session.index, questId);
+                    };
+                    answerDiv.appendChild(answerButton);
+                    disDiv.appendChild(answerDiv);
+                }
+
+                $(detailDiv)
+                    .children("li")
+                    .remove();
+
+                //console.log(session);
+                
+                if(session.chat.length != 0) {
+                    console.log(session);
+                    console.log(session.chat);
+                    session.chat.forEach((ans) => {
+                        var li = document.createElement("li");
+                        var lit = document.createTextNode(ans.user + ": " +ans.answer);
+                        li.appendChild(lit);
+                        li.setAttribute("style", "padding: 5px;border:0.5px solid #000000;");
+                        detailDiv.append(li);
+                    });
+                }
+
+            });
+        }
+    }
+
+    function showTitles(problem_id, questId) {
+        document.getElementById("detailDiv" + questId).style.display = 'none';
+        document.getElementById("answerDiv" + questId).style.display = 'none';
+        document.getElementById("questions" + problem_id).style.display = 'block';
+        document.getElementById("inputDiv" + problem_id).style.display = 'block';
+        editor.setValue(this.previousCode);
+    }
+
+    function showQuestDetail(problem_id, questId, questCode) {
+        document.getElementById("questions" + problem_id).style.display = 'none';
+        document.getElementById("inputDiv" + problem_id).style.display = 'none';
+        document.getElementById("detailDiv" + questId).style.display = 'block';
+        document.getElementById("answerDiv" + questId).style.display = 'block';
+        this.previousCode = editor.getValue();
+        if (questCode != null) {
+            editor.setValue(questCode);
+        }
+        else {
+            editor.setValue("");
+        }
+    }
+
+
+    function addNewDiscussionSession() {
+        if($("#inputQuest" + problem_id).val() != "") {
+            currentDocForDiscussion.fetch(function (err) {
+                if (err) throw err;
+                if (currentDocForDiscussion.type === null) {
+                    currentDocForDiscussion.create([], showAllDiscussionSession);
+                    var newData = {
+                        index: 0,
+                        user: newUser,
+                        question: $("#inputQuest" + problem_id).val(),
+                        chat: [],
+                        code: editor.getValue(),
+                        id: String(new Date().getTime()),
+                    };
+                    currentDocForDiscussion.submitOp([{ p: [0], li: newData }]);
+                } else {
+                    var dataLength =currentDocForDiscussion.data.length;
+                    var newData = {
+                        index: dataLength,
+                        user: newUser,
+                        question: $("#inputQuest" + problem_id).val(),
+                        chat: [],
+                        code: editor.getValue(),
+                        id: String(new Date().getTime()),
+                    };
+                    currentDocForDiscussion.submitOp([{ p: [dataLength], li: newData }]);
+                }
+                $("#inputQuest" + problem_id).val("");
+            });
+            document.getElementById("inputDiv" + problem_id).style.display = 'none';
+            document.getElementById("cancelButton" + problem_id).style.display = 'none';
+        }
+    }
+
+    function addNewDiscussionAnswer(index, questId) {
+        var answerIndex = currentDocForDiscussion.data[index].chat.length;
+        var newData = {
+            index: answerIndex,
+            user: newUser,
+            answer: $("#inputAnswer" + questId).val(),
+            id: String(new Date().getTime()),
+        };
+        currentDocForDiscussion.data[index].chat.push(newData);
+        currentDocForDiscussion.submitOp([{ p: [index], ld: currentDocForDiscussion.data[index], li:currentDocForDiscussion.data[index]}]);
+        $("#inputAnswer" + questId).val("");
+    }
+}
 
 ActiveCode.prototype.createControls = function () {
     var ctrlDiv = document.createElement("div");
@@ -583,6 +800,7 @@ ActiveCode.prototype.createControls = function () {
 
     // connected users
     var helpsession = connection_mini.get(problem_id, "helpsession_user");
+    
     var currentDocForHelpSession = helpsession;
 
     var connectedUserDiv = document.createElement("div");
@@ -597,10 +815,11 @@ ActiveCode.prototype.createControls = function () {
 
     currentDocForHelpSession.fetch(function (err) {
         if (err) throw err;
-        currentDocForHelpSession.subscribe(showUserNumber);
-        currentDocForHelpSession.on("op", showUserNumber);
+        //currentDocForHelpSession.subscribe(showUserNumber);
+        //currentDocForHelpSession.on("op", showUserNumber);
         currentDocForHelpSession.subscribe(showAllHelpSession);
         currentDocForHelpSession.on("op", showAllHelpSession);
+        currentDocForHelpSession.on("create", showAllHelpSession);
     });
 
     function showUserNumber() {
@@ -618,10 +837,10 @@ ActiveCode.prototype.createControls = function () {
             currentDocForHelpSession.data.forEach((session) => {
                 var userName = session.user;
                 // session.index =
-                var connectedUser = document.createElement("button");
-                $(connectedUser).text(userName);
-                $("div#helpsession" + problem_id).append($(connectedUser));
-                $(connectedUser).click(showHelpSessionCode.bind(session));
+                // var connectedUser = document.createElement("button");
+                // $(connectedUser).text(userName);
+                // $("div#helpsession" + problem_id).append($(connectedUser));
+                // $(connectedUser).click(showHelpSessionCode.bind(session));
             });
         }
     }
@@ -768,41 +987,66 @@ ActiveCode.prototype.createControls = function () {
     $(helpButton).text("Help");
     $(helpButton).css("margin-left", "10px");
     ctrlDiv.appendChild(helpButton);
+    const cancelButton = document.createElement("button");
+    $(cancelButton).addClass("ac_opt btn btn-default");
+    $(cancelButton).text("Cancel");
+    $(cancelButton).css("margin-right", "10px");
+    $(cancelButton).css("float", "right");
+    cancelButton.style.display = 'none';
+    cancelButton.id = "cancelButton" + problem_id;
+    ctrlDiv.appendChild(cancelButton);
 
-    function addNewHelpSession() {
-        currentDocForHelpSession.fetch(function (err) {
-            if (err) throw err;
-            if (currentDocForHelpSession.type === null) {
-                currentDocForHelpSession.create(
-                    [
-                        {
-                            index: 0,
-                            user: newUser,
-                            code: editor.getValue(),
-                            chat: [],
-                            id: String(new Date().getTime()),
-                        },
-                    ],
-                    showAllHelpSession
-                );
-                return;
-                // [{participant: newUser, code: ""]}]
-            } else {
-                var dataLength = currentDocForHelpSession.data.length;
-                var newData = {
-                    index: dataLength,
-                    user: newUser,
-                    code: editor.getValue(),
-                    chat: [],
-                    id: String(new Date().getTime()),
-                };
+    function addNewHelpSession() {
+        currentDocForHelpSession.fetch(function (err) {
+            if (err) throw err;
+            if (currentDocForHelpSession.type === null) {
+                currentDocForHelpSession.create(
+                    [],
+                    showAllHelpSession
+                );
+                var newData = {
+                    index: 0,
+                    user: newUser,
+                    code: editor.getValue(),
+                    chat: [],
+                    id: String(new Date().getTime()),
+                };
+                currentDocForHelpSession.submitOp([{ p: [0], li: newData }]);
+            } else {
+                var dataLength = currentDocForHelpSession.data.length;
+                var newData = {
+                    index: dataLength,
+                    user: newUser,
+                    code: editor.getValue(),
+                    chat: [],
+                    id: String(new Date().getTime()),
+                };
 
-                currentDocForHelpSession.submitOp([{ p: [dataLength], li: newData }]);
-            }
-        });
+                currentDocForHelpSession.submitOp([{ p: [dataLength], li: newData }]);
+            }
+            document.getElementById("cancelButton" + problem_id).style.display = 'block';
+            console.log("cancelButton" + problem_id);
+            console.log(document.getElementById("cancelButton" + problem_id).style);
+            document.getElementById("inputDiv" + problem_id).style.display = 'inline-block';
+        });
     }
 
     $(helpButton).click(addNewHelpSession.bind(this));
+    $(cancelButton).click(cancelHelpSession.bind(this));
+
+    function cancelHelpSession() {
+        currentDocForHelpSession.fetch(function (err) {
+            if (err) throw err;
+            var dataLength = currentDocForHelpSession.data.length;
+            console.log(dataLength);
+            console.log(currentDocForHelpSession.data[dataLength - 1]);
+            currentDocForHelpSession.submitOp([{ p: [dataLength -  1], ld: currentDocForHelpSession.data[dataLength - 1] }]);
+        });
+        document.getElementById("cancelButton" + problem_id).style.display = 'none';
+        document.getElementById("inputDiv" + problem_id).style.display = 'none';
+        $("#inputQuest" + problem_id).val("");
+    }
+
 
     if (this.enablePartner) {
         var checkPartner = document.createElement("input");
