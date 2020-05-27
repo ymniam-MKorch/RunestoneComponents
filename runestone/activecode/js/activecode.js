@@ -417,16 +417,21 @@ ActiveCode.prototype.createDiscussions = function () {
         if(err) throw err;
         currentDocForDiscussion.subscribe(showAllDiscussionSession);
         currentDocForDiscussion.on("op", showAllDiscussionSession);
+        currentDocForDiscussion.on("create", showAllDiscussionSession);
     });
 
     function showAllDiscussionSession() {
+        //console.log("Into show");
         $("#questions" + problem_id)
             .children("li")
             .remove();
+        //console.log("removed");
         if (currentDocForDiscussion.type != null) {
             currentDocForDiscussion.data.forEach((session) => {
                 //var userName = session.user;
+                //console.log("session:"+session);
                 var question = session.question;
+                //console.log(session.question);
                 var questId = session.id;
                 var code = session.code;
                 var quest = document.createElement("li");
@@ -538,28 +543,18 @@ ActiveCode.prototype.createDiscussions = function () {
             currentDocForDiscussion.fetch(function (err) {
                 if (err) throw err;
                 if (currentDocForDiscussion.type === null) {
-                    currentDocForDiscussion.create([], showAllDiscussionSession);
-                    var newData = {
-                        index: 0,
-                        user: newUser,
-                        question: $("#inputQuest" + problem_id).val(),
-                        chat: [],
-                        code: editor.getValue(),
-                        id: String(new Date().getTime()),
-                    };
-                    currentDocForDiscussion.submitOp([{ p: [0], li: newData }]);
-                } else {
-                    var dataLength =currentDocForDiscussion.data.length;
-                    var newData = {
-                        index: dataLength,
-                        user: newUser,
-                        question: $("#inputQuest" + problem_id).val(),
-                        chat: [],
-                        code: editor.getValue(),
-                        id: String(new Date().getTime()),
-                    };
-                    currentDocForDiscussion.submitOp([{ p: [dataLength], li: newData }]);
-                }
+                    currentDocForDiscussion.create([]);
+                } 
+                var dataLength =currentDocForDiscussion.data.length;
+                var newData = {
+                    index: dataLength,
+                    user: newUser,
+                    question: $("#inputQuest" + problem_id).val(),
+                    chat: [],
+                    code: editor.getValue(),
+                    id: String(new Date().getTime()),
+                };
+                currentDocForDiscussion.submitOp([{ p: [dataLength], li: newData }]);
                 $("#inputQuest" + problem_id).val("");
             });
             document.getElementById("inputDiv" + problem_id).style.display = 'none';
