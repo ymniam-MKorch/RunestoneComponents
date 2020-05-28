@@ -441,6 +441,7 @@ ActiveCode.prototype.createDiscussions = function () {
                 title.id = "question" + questId;
                 title.setAttribute("style", "padding: 5px;border:0.5px solid #000000; background:none;");
                 title.onclick = function() { showQuestDetail(problem_id, questId, code); };
+                //$(title).click(showQuestDetail.bind(session));
                 quest.append(title);
                 $("#questions" + problem_id).append(quest);
 
@@ -529,11 +530,30 @@ ActiveCode.prototype.createDiscussions = function () {
         document.getElementById("detailDiv" + questId).style.display = 'block';
         document.getElementById("answerDiv" + questId).style.display = 'block';
         this.previousCode = editor.getValue();
-        if (questCode != null) {
-            editor.setValue(questCode);
-        }
-        else {
-            editor.setValue("");
+        this.doc_codecontent = connection_codecontent.get(
+            problem_id,
+            "disSession" + questId
+        );
+        const DisSessionDoc = this.doc_codecontent;
+        const userCode = questCode;
+
+        //thisCodeProblem.destroy();
+        DisSessionDoc.fetch(function (err) {
+            if (err) throw err;
+            if (DisSessionDoc.type === null) {
+                DisSessionDoc.create(
+                    {
+                        code: userCode,
+                    },
+                    acallback
+                );
+                return;
+            }
+            acallback();
+        });
+
+        function acallback() {
+            disSession = new ShareDBCodeMirrorBinding(editor, DisSessionDoc);
         }
     }
 
