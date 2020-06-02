@@ -9,6 +9,36 @@
  *   as well
  */
 //////////
+
+// get the current webpage's url
+var currentUrl = window.location.href;
+
+var globalMenu = document.createElement('li');
+globalMenu.class = "dropdown globaltoc-container";
+globalMenu.innerHTML = "<a onclick='openNav()'>&#9776; Discussion</a>";
+var sidebar = document.createElement('div');
+sidebar.id = "discussion_list";
+$(sidebar).css("height", "75%");
+$(sidebar).css("width", "0");
+$(sidebar).css("position", "fixed");
+$(sidebar).css("z-index", "1");
+$(sidebar).css("top", "0");
+$(sidebar).css("left", "0");
+$(sidebar).css("background-color", "rgb(245, 241, 241)");
+$(sidebar).css("overflow-x", "hidden");
+$(sidebar).css("transition", "0.3s");
+$(sidebar).css("padding-top", "60px");
+sidebar.innerHTML = "<a href='javascript:void(0)' onclick='closeNav()' style= 'font-size: 30px'>&times;</a>";
+document.getElementsByClassName("nav navbar-nav")[1].appendChild(globalMenu);
+document.getElementsByClassName("nav navbar-nav")[1].appendChild(sidebar);
+function openNav() {
+    document.getElementById("discussion_list").style.width = "300px";
+  }
+function closeNav() {
+    document.getElementById("discussion_list").style.width = "0";
+}
+
+
 class ShareDBCodeMirrorBinding {
     constructor(codeMirror, doc) {
         this.suppressChanges = false;
@@ -272,11 +302,15 @@ ActiveCode.prototype.init = function (opts) {
 
 ActiveCode.prototype.createEditor = function (index) {
     this.containerDiv = document.createElement("div");
+
+    this.containerDiv.setAttribute("href", "#" + this.divid);
+
     var linkdiv = document.createElement("div");
     linkdiv.id = this.divid.replace(/_/g, "-").toLowerCase(); // :ref: changes _ to - so add this as a target
     $(this.containerDiv).addClass("ac_section alert alert-warning row");
     const codeDiv = document.createElement("div");
     $(codeDiv).addClass("ac_code_div col-md-6");
+    codeDiv.id = "code" + this.divid;
     const discussionDiv = document.createElement("div");
     discussionDiv.id = "discussionDiv" + this.divid;
     $(discussionDiv).addClass("ac_code_div col-md-6");
@@ -306,10 +340,13 @@ ActiveCode.prototype.createEditor = function (index) {
     } else if (edmode === "cpp") {
         edmode = "text/x-c++src";
     }
-
-    var editor = CodeMirror(codeDiv, {
-        value: this.code,
+    const codeTextArea = document.createElement("textarea");
+    codeTextArea.id = "codeTextArea" + this.divid;
+    codeTextArea.value = this.code;
+    codeDiv.appendChild(codeTextArea);
+    var editor = CodeMirror.fromTextArea(document.getElementById("codeTextArea" + this.divid), {
         lineNumbers: true,
+        styleSelectedText: true,
         mode: edmode,
         indentUnit: 4,
         matchBrackets: true,
@@ -317,6 +354,7 @@ ActiveCode.prototype.createEditor = function (index) {
         extraKeys: { Tab: "indentMore", "Shift-Tab": "indentLess" },
     });
     this.editor = editor;
+
 
     $(editor.getWrapperElement()).resizable({
         resize: function () {
@@ -372,6 +410,7 @@ ActiveCode.prototype.createEditor = function (index) {
 };
 
 ActiveCode.prototype.createControls = function () {
+    var edmode = this.containerDiv.lang;
     var ctrlDiv = document.createElement("div");
     $(ctrlDiv).addClass("ac_actions");
     $(ctrlDiv).addClass("col-md-12");
@@ -541,7 +580,7 @@ ActiveCode.prototype.createControls = function () {
     $(buttMINI).css("margin-left", "10px");
     ctrlDiv.appendChild(buttMINI);
     this.doc_mycode = connection_codecontent.get(this.divid + newUser, "mycode");
-    const editor = this.editor;
+    var editor = this.editor;
     const currentCodeDoc = this.doc_mycode;
     const problem_id = this.divid;
 
@@ -573,6 +612,19 @@ ActiveCode.prototype.createControls = function () {
 
     ctrlDiv.appendChild(connectedUserDiv);
 
+    //select answer position
+    var answerInputSelectStart;
+    var answerInputSelectEnd;
+    var codePointer = new Array();
+    var currentQuest;
+    var currentCode;
+
+    //add script
+    // var newScript = document.createElement("script");
+    // var inlineScript = document.createTextNode('function highlightCodeSelected(problemid,codestartline, codestartch,codeendline,codeendch) {$("#code" + problemid).children("div").remove(); var editor = CodeMirror.fromTextArea(document.getElementById("codeTextArea" + problemid), { lineNumbers: true, styleSelectedText: true }); console.log(editor);editor.getDoc().markText({line: codestartline, ch: codestartch}, {line: codeendline, ch: codeendch}, {css: "background: yellow"});}');
+    // newScript.appendChild(inlineScript); 
+    // ctrlDiv.appendChild(newScript);
+
     // help session
     const helpButton = document.createElement("button");
     $(helpButton).addClass("ac_opt btn btn-default");
@@ -587,6 +639,14 @@ ActiveCode.prototype.createControls = function () {
     cancelButton.style.display = 'none';
     cancelButton.id = "cancelButton" + problem_id;
     ctrlDiv.appendChild(cancelButton);
+    const cancelHighLightButton = document.createElement("button");
+    $(cancelHighLightButton).addClass("ac_opt btn btn-default");
+    $(cancelHighLightButton).text("Cancel HighLight");
+    $(cancelHighLightButton).css("margin-right", "10px");
+    $(cancelHighLightButton).css("float", "right");
+    cancelHighLightButton.style.display = 'none';
+    cancelHighLightButton.id = "cancelHighLightButton" + problem_id;
+    ctrlDiv.appendChild(cancelHighLightButton);
 
     //discussion session
     var questions = document.createElement("ul");
@@ -625,7 +685,10 @@ ActiveCode.prototype.createControls = function () {
     this.discussionDiv.appendChild(inputDiv);
 
     var disSession = connection_mini.get(problem_id, "helpsession_discussion");
+    var discussion_list = connection_mini.get('discussion', 'list');
+
     var currentDocForDiscussion = disSession;
+    var discussionList = discussion_list
 
     currentDocForDiscussion.fetch(function(err) {
         if(err) throw err;
@@ -633,6 +696,39 @@ ActiveCode.prototype.createControls = function () {
         currentDocForDiscussion.on("op", showAllDiscussionSession);
         currentDocForDiscussion.on("create", showAllDiscussionSession);
     });
+    
+    // add the discussion list to the global menu
+    discussionList.fetch(function(err) {
+        if(err) throw err;
+        discussionList.subscribe(showAllDiscussionList);
+        discussionList.on("op", showAllDiscussionList);
+    });
+
+    function showAllDiscussionList() {
+        if (discussionList.type != null) {
+            var list = document.getElementById("discussion_list");
+            discussion_list.data.forEach((session) =>{
+                var questId = session.id;
+                var code = session.code;
+                var temp = document.createElement("li");
+                var content = document.createElement("a");
+                temp.id = "discussionList" + session.id;
+                temp.class = "toctree-l1";
+                content.class = "reference internal";
+                content.href = session.url;
+                content.innerHTML = session.question;
+                
+                // need debug
+                // content.onclick = function() { showQuestDetail(questId, code); };
+
+                temp.appendChild(content);
+                const search = document.getElementById("discussionList" + session.id);
+                if (!search) {
+                    list.appendChild(temp);
+                }    
+            })
+        }
+    }
     
     function showAllDiscussionSession() {
         //console.log("Into show");
@@ -691,6 +787,7 @@ ActiveCode.prototype.createControls = function () {
 
                     const inputAnswer = document.createElement("input");
                     inputAnswer.id = "inputAnswer" + questId;
+                    inputAnswer.type = "text";
                     inputAnswer.setAttribute("style", "padding: 10px; width: 75%; margin-right: .5%; border:0.5px solid #000000;box-sizing: border-box;");
                     answerDiv.appendChild(inputAnswer);
                     const Buttons = document.createElement("div");
@@ -706,6 +803,9 @@ ActiveCode.prototype.createControls = function () {
                     $(linkButton).css("padding", "2px");
                     $(linkButton).css("box-sizing", "border-box");
                     $(linkButton).text("Select");
+                    linkButton.onclick = function () {                 
+                        addNewCodeLink(questId);
+                    };
                     const answerButton = document.createElement("button");
                     $(answerButton).css("width", "70%");
                     $(answerButton).css("height", "3%");
@@ -723,19 +823,54 @@ ActiveCode.prototype.createControls = function () {
                     disDiv.appendChild(answerDiv);
                 }
 
-                $(detailDiv)
+                const detailsDiv = document.getElementById("detailDiv" + problem_id + questId);
+                $(detailsDiv)
                     .children("li")
                     .remove();
                 
                 if(session.chat.length != 0) {
-                    console.log(session);
-                    console.log(session.chat);
+                    //console.log(session);
+                    //console.log(session.chat);
                     session.chat.forEach((ans) => {
                         var li = document.createElement("li");
-                        var lit = document.createTextNode(ans.user + ": " +ans.answer);
-                        li.appendChild(lit);
+                        var answer = ans.answer;
+                        var index = 0;
+                        console.log(ans.pointers);
+                        if (ans.pointers != null) {
+                            ans.pointers.forEach((pointer) => {
+                                var text = answer.substring(index, pointer.answerStart);
+                                if (index == 0) {
+                                    text = ans.user + ': ' + text;
+                                }
+                                var textSapn = document.createElement("span");
+                                textSapn.innerText = text;
+                                li.appendChild(textSapn);
+                                var aText = answer.substring(pointer.answerStart, pointer.answerEnd);
+                                var aPointer = document.createElement("a");
+                                aPointer.innerText = aText;
+                                aPointer.href = "javascript:void(0);";
+                                aPointer.onclick = function () {                 
+                                    highlightCodeSelected(pointer.codeStart.line, pointer.codeStart.ch, pointer.codeEnd.line, pointer.codeEnd.ch, edmode);
+                                };
+                                li.appendChild(aPointer);
+                                index = pointer.answerEnd;
+                            })
+                        }
+                        if (index == 0) {
+                            var text = answer.substring(index, answer.length);
+                            text = ans.user + ': ' + text;
+                            var textSapn = document.createElement("span");
+                            textSapn.innerText = text;
+                            li.appendChild(textSapn);
+                        }
+                        else if (index < answer.length) {
+                            var text = answer.substring(index, answer.length);
+                            var textSapn = document.createElement("span");
+                            textSapn.innerText = text;
+                            li.appendChild(textSapn);
+                        }
                         li.setAttribute("style", "padding: 5px;border:0.5px solid #000000;");
-                        detailDiv.append(li);
+                        detailsDiv.appendChild(li);
                     });
                 }
 
@@ -779,20 +914,21 @@ ActiveCode.prototype.createControls = function () {
             acallback();
         });
     }
-    $(buttMINI).click(showTitles.bind(this));
+    $(buttMINI).click(showTitles);
 
     function showQuestDetail(questId, questCode) {
+        currentQuest = questId;
+        currentCode = questCode;
         document.getElementById("questions" + problem_id).style.display = 'none';
         document.getElementById("inputDiv" + problem_id).style.display = 'none';
-        document.getElementById("detailDiv" + problem_id + questId).style.display = 'block';
-        document.getElementById("answerDiv" + problem_id + questId).style.display = 'inline-block';
+        document.getElementById("detailDiv" + problem_id + currentQuest).style.display = 'block';
+        document.getElementById("answerDiv" + problem_id + currentQuest).style.display = 'inline-block';
         this.doc_codecontent = connection_codecontent.get(
             problem_id,
-            "disSession" + questId
+            "disSession" + currentQuest
         );
         const DisSessionDoc = this.doc_codecontent;
-        const userCode = questCode;
-
+        
         thisCodeProblem.destroy();
         $("div#chat_window_div" + problem_id).remove();
         DisSessionDoc.fetch(function (err) {
@@ -800,7 +936,7 @@ ActiveCode.prototype.createControls = function () {
             if (DisSessionDoc.type === null) {
                 DisSessionDoc.create(
                     {
-                        code: userCode,
+                        code: currentCode,
                     },
                     acallback
                 );
@@ -820,6 +956,9 @@ ActiveCode.prototype.createControls = function () {
                 if (err) throw err;
                 if (currentDocForDiscussion.type === null) {
                     currentDocForDiscussion.create([]);
+                }
+                if (discussionList.type === null) {
+                    discussionList.create([]);
                 } 
                 var dataLength =currentDocForDiscussion.data.length;
                 var newData = {
@@ -829,8 +968,11 @@ ActiveCode.prototype.createControls = function () {
                     chat: [],
                     code: editor.getValue(),
                     id: String(new Date().getTime()),
+                    url: currentUrl + "#" + problem_id,
                 };
                 currentDocForDiscussion.submitOp([{ p: [dataLength], li: newData }]);
+                $("#inputQuest" + problem_id).val("");
+                discussionList.submitOp([{p: ['discussionList'], li: newData}]);
                 $("#inputQuest" + problem_id).val("");
             });
             document.getElementById("inputDiv" + problem_id).style.display = 'none';
@@ -840,19 +982,68 @@ ActiveCode.prototype.createControls = function () {
 
     function addNewDiscussionAnswer(index, questId) {
         var answerIndex = currentDocForDiscussion.data[index].chat.length;
+        var answerValue = $("#inputAnswer" + questId).val();   
+        console.log(codePointer);
         var newData = {
             index: answerIndex,
             user: newUser,
-            answer: $("#inputAnswer" + questId).val(),
+            answer: answerValue,
+            pointers: codePointer,
             id: String(new Date().getTime()),
         };
         currentDocForDiscussion.data[index].chat.push(newData);
         currentDocForDiscussion.submitOp([{ p: [index], ld: currentDocForDiscussion.data[index], li:currentDocForDiscussion.data[index]}]);
         $("#inputAnswer" + questId).val("");
+        codePointer.length = 0;
     }
 
-    $(helpButton).click(showNewHelpSubmit.bind(this));
-    $(cancelButton).click(cancelHelpSession.bind(this));
+    function addNewCodeLink(questId) {
+        var inputAnswer = document.getElementById("inputAnswer" + questId);
+        var startPosition = inputAnswer.selectionStart;
+        var endPosition = inputAnswer.selectionEnd;
+
+        if (startPosition != endPosition && answerInputSelectStart != startPosition && answerInputSelectEnd != endPosition) {
+            answerInputSelectStart = startPosition;
+            answerInputSelectEnd = endPosition;
+        }
+        else {
+            var codeSelectStart = editor.getCursor(true);
+            var codeSelectEnd = editor.getCursor(false);
+            if (answerInputSelectStart != null && answerInputSelectEnd != null) {
+                var dataLength = codePointer.length;
+                var newData = {
+                    index: dataLength,
+                    user: newUser,
+                    id: String(new Date().getTime()),
+                    codeStart: codeSelectStart,
+                    codeEnd: codeSelectEnd,
+                    answerStart: answerInputSelectStart,
+                    answerEnd: answerInputSelectEnd
+                };
+                codePointer.push(newData);
+            }
+        }
+    }
+
+    function highlightCodeSelected(startLine, startCh, endLine, endCh, edmode) {
+        document.getElementById("cancelHighLightButton" + problem_id).style.display = 'block';
+        editor.toTextArea();
+        var newEditor = CodeMirror.fromTextArea(document.getElementById("codeTextArea" + problem_id), {
+            lineNumbers: true,
+            styleSelectedText: true,
+            mode: edmode,
+            indentUnit: 4,
+            matchBrackets: true,
+            autoMatchParens: true,
+            extraKeys: { Tab: "indentMore", "Shift-Tab": "indentLess" },
+        });
+        newEditor.getDoc().markText({line: startLine, ch: startCh}, {line: endLine, ch: endCh}, {css: "background: yellow"});
+        editor = newEditor;
+    }
+
+    $(helpButton).click(showNewHelpSubmit);
+    $(cancelButton).click(cancelHelpSession);
+    $(cancelHighLightButton).click(cancelHighLight);
 
     function showNewHelpSubmit() {
         document.getElementById("cancelButton" + problem_id).style.display = 'block';
@@ -870,6 +1061,34 @@ ActiveCode.prototype.createControls = function () {
         document.getElementById("cancelButton" + problem_id).style.display = 'none';
         document.getElementById("inputDiv" + problem_id).style.display = 'none';
         $("#inputQuest" + problem_id).val("");
+    }
+
+    function cancelHighLight() {
+        this.doc_codecontent = connection_codecontent.get(
+            problem_id,
+            "disSession" + currentQuest
+        );
+        const DisSessionDoc = this.doc_codecontent;
+        
+        $("div#chat_window_div" + problem_id).remove();
+        DisSessionDoc.fetch(function (err) {
+            if (err) throw err;
+            if (DisSessionDoc.type === null) {
+                DisSessionDoc.create(
+                    {
+                        code: currentCode,
+                    },
+                    acallback
+                );
+                return;
+            }
+            acallback();
+        });
+
+        function acallback() {
+            helpsession = new ShareDBCodeMirrorBinding(editor, DisSessionDoc);
+        }
+        document.getElementById("cancelHighLightButton" + problem_id).style.display = 'none';
     }
 
     if (this.enablePartner) {
